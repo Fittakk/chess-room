@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Room</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="page">
+    <div class="left-panel">
+      <div class="board-card">
+        <div class="player-top">Black: <span id="blackName">Waiting...</span></div>
+        <div id="board"></div>
+        <div class="player-bottom">White: <span id="whiteName">Waiting...</span></div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="hero-box">
+        <div class="mini-top">
+          <div class="room-badge" id="roomText">Room: -</div>
+          <div class="role-badge" id="role">You are: spectator</div>
+        </div>
+
+        <h1>Play Chess Online<br />with your friends</h1>
+        <p class="hero-text">
+          Join your room, play live, chat together, and let spectators watch the match.
+        </p>
+
+        <div class="info-box" id="spectators">Spectators: none</div>
+        <div class="info-box" id="gameStatus">Game status: In progress</div>
+
+        
+
+        <div class="chat-card">
+          <div id="chatBox"></div>
+
+          <div class="chat-row">
+            <input id="chatInput" placeholder="Shkruaj..." />
+            <button onclick="sendMsg()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
