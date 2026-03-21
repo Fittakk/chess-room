@@ -8,11 +8,18 @@ let role = "spectator";
 let roomId = new URLSearchParams(window.location.search).get("room") || "grupi-shahut";
 let playerName = prompt("Shkruaj emrin tënd:", "Guest") || "Guest";
 
+let clientId = localStorage.getItem("chessClientId");
+if (!clientId) {
+  clientId = crypto.randomUUID();
+  localStorage.setItem("chessClientId", clientId);
+}
+
 document.getElementById("roomText").innerText = "Room: " + roomId;
 
 socket.emit("joinRoom", {
   roomId,
-  name: playerName
+  name: playerName,
+  clientId
 });
 
 socket.on("role", (r) => {
@@ -45,6 +52,13 @@ socket.on("chat", (msg) => {
   box.scrollTop = box.scrollHeight;
 });
 
+function startNewGame() {
+  socket.emit("newGame");
+  selected = null;
+  possibleMoves = [];
+  lastMove = [];
+}
+
 function render() {
   const board = document.getElementById("board");
   board.innerHTML = "";
@@ -72,18 +86,21 @@ function render() {
       div.classList.add("square");
       div.classList.add((displayRow + displayCol) % 2 === 0 ? "white" : "black");
 
+      div.style.outline = "";
+      div.style.backgroundColor = "";
+
       if (selected === squareName) {
         div.style.outline = "3px solid yellow";
+      }
+
+      if (lastMove.includes(squareName)) {
+        div.style.backgroundColor = "#f7ec59";
       }
 
       if (possibleMoves.includes(squareName)) {
         const dot = document.createElement("div");
         dot.classList.add("move-dot");
         div.appendChild(dot);
-      }
-
-      if (lastMove.includes(squareName)) {
-        div.style.backgroundColor = "#f7ec59";
       }
 
       if (square) {
@@ -116,7 +133,7 @@ function handleClick(square) {
     if (role === "black" && piece.color !== "b") return;
 
     selected = square;
-    possibleMoves = chess.moves({ square: square, verbose: true }).map(m => m.to);
+    possibleMoves = chess.moves({ square, verbose: true }).map((m) => m.to);
     render();
     return;
   }
@@ -148,7 +165,7 @@ function handleClick(square) {
       (role === "black" && piece.color === "b")
     ) {
       selected = square;
-      possibleMoves = chess.moves({ square: square, verbose: true }).map(m => m.to);
+      possibleMoves = chess.moves({ square, verbose: true }).map((m) => m.to);
       render();
       return;
     }

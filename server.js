@@ -10,39 +10,62 @@ const io = new Server(server);
 app.use(express.static("public"));
 
 const rooms = {};
+const DISCONNECT_GRACE_MS = 30000;
 
 function createRoom(roomId) {
   if (!rooms[roomId]) {
     rooms[roomId] = {
       game: new Chess(),
-      players: {
+      seats: {
         white: null,
         black: null,
       },
-      names: {},
+      spectators: {},
     };
   }
 }
 
-function getRole(room, socketId) {
-  if (room.players.white === socketId) return "white";
-  if (room.players.black === socketId) return "black";
+function makeSeat(clientId, socketId, name) {
+  return {
+    clientId,
+    socketId,
+    name,
+    disconnectTimer: null,
+  };
+}
+
+function clearSeatTimer(seat) {
+  if (seat && seat.disconnectTimer) {
+    clearTimeout(seat.disconnectTimer);
+    seat.disconnectTimer = null;
+  }
+}
+
+function getRoleBySocket(room, socketId) {
+  if (room.seats.white && room.seats.white.socketId === socketId) return "white";
+  if (room.seats.black && room.seats.black.socketId === socketId) return "black";
   return "spectator";
 }
 
-function getGameStatus(game) {
-  if (game.isCheckmate()) {
-    return game.turn() === "w"
+function getRoleByClientId(room, clientId) {
+  if (room.seats.white && room.seats.white.clientId === clientId) return "white";
+  if (room.seats.black && room.seats.black.clientId === clientId) return "black";
+  return "spectator";
+}
+
+function roomStatus(room) {
+  if (room.game.isCheckmate()) {
+    return room.game.turn() === "w"
       ? "Black wins by checkmate"
       : "White wins by checkmate";
   }
 
-  if (game.isDraw()) {
+  if (room.game.isDraw()) {
     return "Draw";
   }
 
-  if (game.isCheck()) {
-    return game.turn() === "w"
+  if (room.game.isCheck()) {
+    return room.game.turn() === "w"
       ? "White is in check"
       : "Black is in check";
   }
@@ -56,45 +79,80 @@ function sendRoomState(roomId) {
 
   io.to(roomId).emit("state", {
     fen: room.game.fen(),
-    whiteName: room.players.white
-      ? room.names[room.players.white] || "White"
-      : "Waiting...",
-    blackName: room.players.black
-      ? room.names[room.players.black] || "Black"
-      : "Waiting...",
-    spectators: Object.keys(room.names)
-      .filter(
-        (id) => id !== room.players.white && id !== room.players.black
-      )
-      .map((id) => room.names[id]),
-    status: getGameStatus(room.game),
+    whiteName: room.seats.white ? room.seats.white.name : "Waiting...",
+    blackName: room.seats.black ? room.seats.black.name : "Waiting...",
+    spectators: Object.values(room.spectators).map((s) => s.name),
+    status: roomStatus(room),
     gameOver: room.game.isGameOver(),
   });
 }
 
+function attachSeat(room, role, clientId, socketId, name) {
+  const seat = room.seats[role];
+  if (seat) {
+    clearSeatTimer(seat);
+    seat.clientId = clientId;
+    seat.socketId = socketId;
+    seat.name = name;
+  } else {
+    room.seats[role] = makeSeat(clientId, socketId, name);
+  }
+}
+
+function removeSpectatorBySocket(room, socketId) {
+  for (const key of Object.keys(room.spectators)) {
+    if (room.spectators[key].socketId === socketId) {
+      delete room.spectators[key];
+      return;
+    }
+  }
+}
+
 io.on("connection", (socket) => {
-  socket.on("joinRoom", ({ roomId, name }) => {
+  socket.on("joinRoom", ({ roomId, name, clientId }) => {
     roomId = (roomId || "default").trim();
     name = (name || "Guest").trim().slice(0, 20);
+    clientId = String(clientId || "").trim();
+
+    if (!clientId) return;
 
     createRoom(roomId);
     const room = rooms[roomId];
 
     socket.join(roomId);
     socket.data.roomId = roomId;
+    socket.data.clientId = clientId;
     socket.data.name = name;
 
-    if (!room.players.white) {
-      room.players.white = socket.id;
-    } else if (!room.players.black) {
-      room.players.black = socket.id;
+    let role = getRoleByClientId(room, clientId);
+
+    if (role === "white") {
+      attachSeat(room, "white", clientId, socket.id, name);
+    } else if (role === "black") {
+      attachSeat(room, "black", clientId, socket.id, name);
+    } else if (!room.seats.white) {
+      attachSeat(room, "white", clientId, socket.id, name);
+      role = "white";
+    } else if (!room.seats.black) {
+      attachSeat(room, "black", clientId, socket.id, name);
+      role = "black";
+    } else {
+      room.spectators[clientId] = {
+        socketId: socket.id,
+        name,
+      };
+      role = "spectator";
     }
 
-    room.names[socket.id] = name;
+    removeSpectatorBySocket(room, socket.id);
+    if (role === "spectator") {
+      room.spectators[clientId] = {
+        socketId: socket.id,
+        name,
+      };
+    }
 
-    const role = getRole(room, socket.id);
     socket.emit("role", role);
-
     io.to(roomId).emit("chat", `${name} joined as ${role}`);
     sendRoomState(roomId);
   });
@@ -104,7 +162,7 @@ io.on("connection", (socket) => {
     if (!roomId || !rooms[roomId]) return;
 
     const room = rooms[roomId];
-    const role = getRole(room, socket.id);
+    const role = getRoleBySocket(room, socket.id);
     const turn = room.game.turn() === "w" ? "white" : "black";
 
     if (role !== turn) return;
@@ -126,8 +184,22 @@ io.on("connection", (socket) => {
 
       sendRoomState(roomId);
     } catch (error) {
-      // invalid move - ignore
+      // invalid move
     }
+  });
+
+  socket.on("newGame", () => {
+    const roomId = socket.data.roomId;
+    if (!roomId || !rooms[roomId]) return;
+
+    const room = rooms[roomId];
+    const role = getRoleBySocket(room, socket.id);
+
+    if (role !== "white" && role !== "black") return;
+
+    room.game = new Chess();
+    io.to(roomId).emit("chat", "New game started");
+    sendRoomState(roomId);
   });
 
   socket.on("chat", (msg) => {
@@ -138,8 +210,8 @@ io.on("connection", (socket) => {
     const text = String(msg || "").trim();
     if (!text) return;
 
-    const sender = room.names[socket.id] || "Guest";
-    io.to(roomId).emit("chat", `${sender}: ${text}`);
+    const name = socket.data.name || "Guest";
+    io.to(roomId).emit("chat", `${name}: ${text}`);
   });
 
   socket.on("disconnect", () => {
@@ -147,12 +219,34 @@ io.on("connection", (socket) => {
     if (!roomId || !rooms[roomId]) return;
 
     const room = rooms[roomId];
-    const name = room.names[socket.id] || "Guest";
+    const clientId = socket.data.clientId;
+    const name = socket.data.name || "Guest";
 
-    if (room.players.white === socket.id) room.players.white = null;
-    if (room.players.black === socket.id) room.players.black = null;
-
-    delete room.names[socket.id];
+    if (room.seats.white && room.seats.white.socketId === socket.id) {
+      room.seats.white.socketId = null;
+      clearSeatTimer(room.seats.white);
+      room.seats.white.disconnectTimer = setTimeout(() => {
+        if (room.seats.white && room.seats.white.clientId === clientId && !room.seats.white.socketId) {
+          room.seats.white = null;
+          sendRoomState(roomId);
+        }
+      }, DISCONNECT_GRACE_MS);
+    } else if (room.seats.black && room.seats.black.socketId === socket.id) {
+      room.seats.black.socketId = null;
+      clearSeatTimer(room.seats.black);
+      room.seats.black.disconnectTimer = setTimeout(() => {
+        if (room.seats.black && room.seats.black.clientId === clientId && !room.seats.black.socketId) {
+          room.seats.black = null;
+          sendRoomState(roomId);
+        }
+      }, DISCONNECT_GRACE_MS);
+    } else {
+      if (room.spectators[clientId]) {
+        delete room.spectators[clientId];
+      } else {
+        removeSpectatorBySocket(room, socket.id);
+      }
+    }
 
     io.to(roomId).emit("chat", `${name} left the room`);
     sendRoomState(roomId);
