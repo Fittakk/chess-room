@@ -261,3 +261,17 @@ button:hover {
   border-radius: 50%;
   position: absolute;
 }
+
+@keyframes kingFall {
+  0% {
+    transform: rotateZ(0deg);
+  }
+  100% {
+    transform: rotateZ(90deg);
+  }
+}
+
+.piece-img.fallen {
+  animation: kingFall 0.8s ease-out forwards;
+  filter: brightness(0.6) saturate(2) hue-rotate(-30deg);
+}

@@ -14,6 +14,8 @@ if (!clientId) {
   localStorage.setItem("chessClientId", clientId);
 }
 
+let gameOverState = null;
+
 document.getElementById("roomText").innerText = "Room: " + roomId;
 
 socket.emit("joinRoom", {
@@ -41,6 +43,12 @@ socket.on("state", (data) => {
 
   if (document.getElementById("gameStatus")) {
     document.getElementById("gameStatus").innerText = "Game status: " + (data.status || "In progress");
+  }
+
+  if (chess.isCheckmate()) {
+    gameOverState = chess.turn() === "w" ? "black" : "white";
+  } else {
+    gameOverState = null;
   }
 
   render();
@@ -108,6 +116,11 @@ function render() {
         img.src = `pieces/${square.color}${square.type}.svg`;
         img.classList.add("piece-img");
         img.draggable = false;
+
+        if (gameOverState && square.type === "k" && square.color === (gameOverState === "white" ? "w" : "b")) {
+          img.classList.add("fallen");
+        }
+
         div.appendChild(img);
       }
 
