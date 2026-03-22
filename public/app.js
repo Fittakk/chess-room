@@ -26,38 +26,41 @@ function playSound(type) {
 
   switch(type) {
     case 'move':
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
+      oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.05); // E5
+      gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.1);
       break;
     case 'capture':
-      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
-      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
+      oscillator.frequency.setValueAtTime(330, audioContext.currentTime + 0.05); // E4
+      oscillator.frequency.setValueAtTime(262, audioContext.currentTime + 0.1); // C4
+      gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.2);
+      oscillator.stop(audioContext.currentTime + 0.15);
       break;
     case 'check':
-      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
-      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.2);
-      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+      oscillator.frequency.setValueAtTime(1109, audioContext.currentTime + 0.1); // C#6
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.2); // A5
+      oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.3); // E5
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
+      oscillator.stop(audioContext.currentTime + 0.4);
       break;
     case 'checkmate':
-      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(400, audioContext.currentTime + 0.2);
-      oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.4);
-      gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+      oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
+      oscillator.frequency.setValueAtTime(392, audioContext.currentTime + 0.2); // G4
+      oscillator.frequency.setValueAtTime(294, audioContext.currentTime + 0.4); // D4
+      oscillator.frequency.setValueAtTime(220, audioContext.currentTime + 0.6); // A3
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.6);
+      oscillator.stop(audioContext.currentTime + 0.8);
       break;
   }
 }
