@@ -117,7 +117,7 @@ function render() {
         img.classList.add("piece-img");
         img.draggable = false;
 
-        if (gameOverState && square.type === "k" && square.color === (gameOverState === "white" ? "w" : "b")) {
+        if (gameOverState && square.type === "k" && square.color === (gameOverState === "white" ? "b" : "w")) {
           img.classList.add("fallen");
         }
 
