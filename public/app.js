@@ -16,6 +16,14 @@ if (!clientId) {
 
 let gameOverState = null;
 
+function playSound(soundId) {
+  const audio = document.getElementById(soundId);
+  if (audio) {
+    audio.currentTime = 0;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+  }
+}
+
 document.getElementById("roomText").innerText = "Room: " + roomId;
 
 socket.emit("joinRoom", {
@@ -31,6 +39,7 @@ socket.on("role", (r) => {
 });
 
 socket.on("state", (data) => {
+  const previousFen = chess.fen();
   chess.load(data.fen);
   document.getElementById("whiteName").innerText = data.whiteName;
   document.getElementById("blackName").innerText = data.blackName;
@@ -47,8 +56,24 @@ socket.on("state", (data) => {
 
   if (chess.isCheckmate()) {
     gameOverState = chess.turn() === "w" ? "black" : "white";
-  } else {
-    gameOverState = null;
+    playSound("checkmateSound");
+  } else if (chess.isCheck()) {
+    playSound("checkSound");
+  } else if (previousFen !== data.fen) {
+    // Check if a piece was captured
+    const prevBoard = new Chess(previousFen).board();
+    const currBoard = chess.board();
+    let captured = false;
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        if (prevBoard[i][j] && !currBoard[i][j]) {
+          captured = true;
+          break;
+        }
+      }
+      if (captured) break;
+    }
+    playSound(captured ? "captureSound" : "moveSound");
   }
 
   render();
